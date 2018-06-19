@@ -1,9 +1,13 @@
 from keras.models import Sequential
 from keras.layers import MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout
 from keras.utils import plot_model
+from keras import callbacks
 import matplotlib.pyplot as plt
 
 from modules import img_util
+
+
+tb_callback = callbacks.TensorBoard(log_dir='Graph', histogram_freq=0, write_graph=True, write_images=True)
 
 
 def create_model(width, height, num_classes):
@@ -120,7 +124,8 @@ def train(t_model, t_train_data, t_test_data, t_train_labels, t_test_labels):
         batch_size=batch_size,
         epochs=number_epochs,
         verbose=1,
-        validation_data=(t_test_data, t_test_labels)
+        validation_data=(t_test_data, t_test_labels),
+        callbacks=[tb_callback]
     )
     show_training_graph(model_history)
 
@@ -161,7 +166,8 @@ def load_train(lt_model, lt_train_data, lt_test_data, lt_train_labels, lt_test_l
         batch_size=batch_size,
         epochs=number_epochs,
         verbose=1,
-        validation_data=(lt_test_data, lt_test_labels)
+        validation_data=(lt_test_data, lt_test_labels),
+        callbacks=[tb_callback]
     )
     show_training_graph(model_history)
 
