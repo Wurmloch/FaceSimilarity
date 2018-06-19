@@ -16,15 +16,18 @@ def similarity_on_single_img(img_path, model):
     predict = predict[0]
 
     best_results = np.argpartition(predict, -5)[-5:]
+    best_results = np.flipud(best_results)
     worst_result = np.argmin(predict)
 
     with open('class_dict.pkl', 'rb') as f:
         name_dict = pickle.load(f)
 
-    found_person = name_dict[np.argmax(predict)][::-1]
+    found_person = name_dict[np.argmax(predict)]
     print("Looks like " + found_person + "! \n")
-    print("best results: " + ", ".join(list(map(lambda x: name_dict[x], best_results))) + "\n")
+    print("best results: " + ", ".join(list(map(lambda x: name_dict[x], best_results))))
+    print(np.array(predict)[best_results])
     print("worst result: " + name_dict[worst_result])
+    print(predict[worst_result])
 
     """
     match = ''
