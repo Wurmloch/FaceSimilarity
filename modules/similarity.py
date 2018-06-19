@@ -7,18 +7,24 @@ from modules import net
 
 def similarity_on_single_img(img_path, model):
     test_img = img_util.get_single_img(img_path, grey=True)
-    test_img = np.array(test_img, 'uint8')
-    test_img = np.expand_dims(test_img, axis=2)
-    test_img = np.expand_dims(test_img, axis=0)
+    test_img = [np.array(test_img, 'uint8')]
+    test_img = np.asarray(test_img)
+    test_img = test_img[:, :, :, np.newaxis] / 255.0
 
-    predict = model.predict_proba(test_img, batch_size=10)
-    print(predict, np.argmax(predict))
+    predict = model.predict_proba(test_img, batch_size=1, verbose=0)
+    # only 1 image -- thus first array el
+    predict = predict[0]
+
+    best_results = np.argpartition(predict, -5)[-5:]
+    worst_result = np.argmin(predict)
 
     with open('class_dict.pkl', 'rb') as f:
         name_dict = pickle.load(f)
-    print(name_dict)
+
     found_person = name_dict[np.argmax(predict)]
-    print("Looks like " + found_person)
+    print("Looks like " + found_person + "! \n")
+    print("best results: " + ", ".join(list(map(lambda x: name_dict[x], best_results))) + "\n")
+    print("worst result: " + name_dict[worst_result])
 
     """
     match = ''
