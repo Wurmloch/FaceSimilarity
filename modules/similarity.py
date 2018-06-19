@@ -21,7 +21,7 @@ def similarity_on_single_img(img_path, model):
     with open('class_dict.pkl', 'rb') as f:
         name_dict = pickle.load(f)
 
-    found_person = name_dict[np.argmax(predict)]
+    found_person = name_dict[np.argmax(predict)][::-1]
     print("Looks like " + found_person + "! \n")
     print("best results: " + ", ".join(list(map(lambda x: name_dict[x], best_results))) + "\n")
     print("worst result: " + name_dict[worst_result])
