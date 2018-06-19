@@ -1,8 +1,29 @@
 import numpy as np
 import pickle
+import os
+from PIL import Image
+import webbrowser
 
 from modules import img_util
 from modules import net
+
+norm_face_folder = "E:\\EigeneDateien\\Dokumente\\Projekte\\image_recognition\\thumbnails_features_deduped_publish\\norm"
+
+
+def draw_stacked_faces(person):
+    img_dir = os.path.join(norm_face_folder, person)
+    img_list = os.listdir(img_dir)
+    pil_img_list = list(map(lambda x: Image.open(os.path.join(img_dir, x)), img_list))
+    idx = 0
+    while len(pil_img_list) > 1:
+        if idx + 1 < len(pil_img_list):
+            pil_img_list[idx] = Image.blend(pil_img_list[idx], pil_img_list[idx + 1], 0.5)
+            del pil_img_list[idx + 1]
+            idx += 1
+        else:
+            idx = 0
+
+    pil_img_list[0].show()
 
 
 def similarity_on_single_img(img_path, model):
@@ -28,6 +49,8 @@ def similarity_on_single_img(img_path, model):
     print(np.array(predict)[best_results])
     print("worst result: " + name_dict[worst_result])
     print(predict[worst_result])
+
+    draw_stacked_faces(found_person)
 
     """
     match = ''

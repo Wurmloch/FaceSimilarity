@@ -35,13 +35,13 @@ def build_sequential(input_shape, num_classes):
     n_model.add(Conv2D(32, kernel_size=(5, 5), padding="same", input_shape=input_shape))
     n_model.add(Activation("relu"))
     n_model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    n_model.add(Dropout(0.15))
+    n_model.add(Dropout(0.2))
 
     # second set of CONV => RELU => POOL
     n_model.add(Conv2D(64, kernel_size=(5, 5), padding="same"))
     n_model.add(Activation("relu"))
     n_model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    n_model.add(Dropout(0.15))
+    n_model.add(Dropout(0.2))
 
     # set of FC => RELU layers
     n_model.add(Flatten())
@@ -76,7 +76,9 @@ def show_training_graph(t_model_hist):
     """
     # Get training and test loss histories
     training_loss = t_model_hist.history['loss']
-    accuracy = t_model_hist.history['acc']
+    test_loss = t_model_hist.history['val_loss']
+    acc = t_model_hist.history['acc']
+    test_acc = t_model_hist.history['val_acc']
 
     # Create count of the number of epochs
     epoch_count = range(1, len(training_loss) + 1)
@@ -87,12 +89,14 @@ def show_training_graph(t_model_hist):
 
     plt.axis('normal')
     ax1.plot(epoch_count, training_loss, 'r--')
-    ax2.plot(epoch_count, accuracy, 'g-')
+    ax1.plot(epoch_count, test_loss, 'y--')
+    ax2.plot(epoch_count, acc, 'g-')
+    ax2.plot(epoch_count, test_acc, 'b-')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Loss')
     ax2.set_ylabel('Accuracy')
-    ax1.legend(['Training Loss'])
-    ax2.legend(['Accuracy'])
+    ax1.legend(['Training Loss', 'Test Loss'])
+    ax2.legend(['Training Accuracy', 'Test Accuracy'])
     plt.show()
 
 
@@ -111,11 +115,12 @@ def train(t_model, t_train_data, t_test_data, t_train_labels, t_test_labels):
     print('training on model...')
 
     model_history = t_model.fit(
-        t_train_data,
-        t_train_labels,
+        x=t_train_data,
+        y=t_train_labels,
         batch_size=batch_size,
         epochs=number_epochs,
-        verbose=1
+        verbose=1,
+        validation_data=(t_test_data, t_test_labels)
     )
     show_training_graph(model_history)
 
@@ -151,11 +156,12 @@ def load_train(lt_model, lt_train_data, lt_test_data, lt_train_labels, lt_test_l
     print('training on model...')
 
     model_history = lt_model.fit(
-        lt_train_data,
-        lt_train_labels,
+        x=lt_train_data,
+        y=lt_train_labels,
         batch_size=batch_size,
         epochs=number_epochs,
-        verbose=1
+        verbose=1,
+        validation_data=(lt_test_data, lt_test_labels)
     )
     show_training_graph(model_history)
 
