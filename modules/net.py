@@ -1,5 +1,5 @@
 from keras.models import Sequential, Model
-from keras.layers import Input, MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout, AveragePooling2D, GlobalAveragePooling2D
+from keras.layers import Add, MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout, AveragePooling2D, GlobalAveragePooling2D
 from keras.utils import plot_model
 from keras import callbacks
 import keras
@@ -14,15 +14,18 @@ tb_callback = callbacks.TensorBoard(log_dir='Graph', histogram_freq=0, write_gra
 def build_residual_block(x):
     """
     builds a residual block according to https://arxiv.org/pdf/1512.03385.pdf
-    :param model_to_add:
-    :param input_shape:
+    :param x: the current block of the functional API
     :return:
     """
-    return Conv2D(256, (1, 1), padding='same')(
-        Conv2D(64, (3, 3), padding='same')(
-            Conv2D(64, (1, 1), padding='same')(x)
-        )
-    )
+    first_layer = Activation('linear', trainable=False)(x)
+    x = Conv2D(256, (1, 1), padding='same')(x)
+    x = Activation('relu')(x)
+    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = Activation('relu')(x)
+    x = Conv2D(64, (1, 1), padding='same')(x)
+    residual = Add()([x, first_layer])
+    x = Activation('relu')(residual)
+    return x
 
 
 def create_model(width, height, num_classes):
