@@ -36,13 +36,20 @@ def build_sequential(input_shape, num_classes):
     print("input shape for model: ", input_shape)
     n_model = Sequential()
 
+    # first set of CONV => RELU => POOL
     n_model.add(Conv2D(32, kernel_size=(5, 5), padding="same", input_shape=input_shape))
     n_model.add(Activation("relu"))
     n_model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
     n_model.add(Dropout(0.2))
 
     # second set of CONV => RELU => POOL
-    n_model.add(Conv2D(64, kernel_size=(5, 5), padding="same"))
+    n_model.add(Conv2D(64, kernel_size=(3, 3), padding="same"))
+    n_model.add(Activation("relu"))
+    n_model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+    n_model.add(Dropout(0.2))
+
+    # third set of CONV => RELU => POOL
+    n_model.add(Conv2D(128, kernel_size=(3, 3), padding="same"))
     n_model.add(Activation("relu"))
     n_model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
     n_model.add(Dropout(0.2))
@@ -50,6 +57,7 @@ def build_sequential(input_shape, num_classes):
     # set of FC => RELU layers
     n_model.add(Flatten())
     n_model.add(Dense(500))
+    n_model.add(Dropout(0.4))
     n_model.add(Activation("relu"))
 
     # softmax classifier
