@@ -1,13 +1,28 @@
-from keras.models import Sequential
-from keras.layers import MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout
+from keras.models import Sequential, Model
+from keras.layers import Input, MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout, AveragePooling2D, GlobalAveragePooling2D
 from keras.utils import plot_model
 from keras import callbacks
+import keras
 import matplotlib.pyplot as plt
 
 from modules import img_util
 
 
 tb_callback = callbacks.TensorBoard(log_dir='Graph', histogram_freq=0, write_graph=True, write_images=True)
+
+
+def build_residual_block(x):
+    """
+    builds a residual block according to https://arxiv.org/pdf/1512.03385.pdf
+    :param model_to_add:
+    :param input_shape:
+    :return:
+    """
+    return Conv2D(256, (1, 1), padding='same')(
+        Conv2D(64, (3, 3), padding='same')(
+            Conv2D(64, (1, 1), padding='same')(x)
+        )
+    )
 
 
 def create_model(width, height, num_classes):
@@ -20,15 +35,15 @@ def create_model(width, height, num_classes):
     img_channels = 1
 
     input_shape = (img_height, img_width, img_channels)
-    net_model = build_sequential(input_shape, num_classes=num_classes)
+    net_model = build_functional(input_shape, num_classes=num_classes)
 
     net_model.summary()
     return net_model
 
 
-def build_sequential(input_shape, num_classes):
+def build_functional(input_shape, num_classes):
     """
-    builds the sequential model and returns it for compilation
+    builds the functional model and returns it for compilation
     :param input_shape:
     :param num_classes:
     :return:
@@ -36,6 +51,48 @@ def build_sequential(input_shape, num_classes):
     print("input shape for model: ", input_shape)
     n_model = Sequential()
 
+    """
+    ### Dense Net with ResNet Blocks (ResNet Blocks have less trainable params!)
+    ### 1x1, 64
+    ### 3x3, 64
+    ### 1x1, 256
+    ### 1*1*64 + 3*3*64 + 1*1*256 (vs.1*1*64 + 3*3*256)
+    """
+    # CONV & POOLING
+    inputs = Conv2D(16, (7, 7), padding='same', input_shape=input_shape)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(inputs)
+    # 6x RES
+    for i in range(6):
+        x = build_residual_block(x)
+    # CONV & POOLING
+    x = Conv2D(64, (1, 1), padding='same')(x)
+    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # 12x RES
+    for i in range(12):
+        x = build_residual_block(x)
+    # CONV & POOLING
+    x = Conv2D(64, (1, 1), padding='same')(x)
+    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # 24x RES
+    for i in range(24):
+        x = build_residual_block(x)
+    # CONV & POOL
+    x = Conv2D(64, (1, 1), padding='same')(x)
+    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # 16x RES
+    for i in range(16):
+        x = build_residual_block(x)
+    # CLASSIFICATION LAYER
+    # POOL GLOBAL AVERAGE
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1000)(x)
+    x = Activation(activation='softmax')(x)
+    x = Dense(num_classes)(x)
+    outputs = Activation(activation='softmax')(x)
+
+    n_model = Model(inputs=inputs, outputs=outputs)
+
+    """ Easy net - pretty shallow
     # first set of CONV => RELU => POOL
     n_model.add(Conv2D(32, kernel_size=(5, 5), padding="same", input_shape=input_shape))
     n_model.add(Activation("relu"))
@@ -63,18 +120,6 @@ def build_sequential(input_shape, num_classes):
     # softmax classifier
     n_model.add(Dense(num_classes))
     n_model.add(Activation("softmax"))
-
-    """ For 1D data
-    n_model.add(Dense(512, input_shape=input_shape))
-    n_model.add(Activation('relu'))
-    n_model.add(Dropout(0.2))
-    n_model.add(MaxPooling2D(pool_size=(2, 2)))
-    n_model.add(Dense(512))
-    n_model.add(Activation('relu'))
-    n_model.add(Dropout(0.2))
-    n_model.add(MaxPooling2D(pool_size=(2, 2)))
-    n_model.add(Dense(num_classes))
-    n_model.add(Activation('softmax'))
     """
 
     return n_model
