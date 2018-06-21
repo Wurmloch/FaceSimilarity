@@ -1,8 +1,9 @@
-from keras.models import Sequential, Model
-from keras.layers import Add, MaxPooling2D, Flatten, Conv2D, Activation, Dense, Dropout, AveragePooling2D, GlobalAveragePooling2D
+from keras.models import Model
+from keras.layers import Add, Input, MaxPooling2D, Conv2D, \
+    Activation, Dense, AveragePooling2D, GlobalAveragePooling2D, Dropout, Flatten, BatchNormalization
 from keras.utils import plot_model
 from keras import callbacks
-import keras
+from keras.regularizers import l2
 import matplotlib.pyplot as plt
 
 from modules import img_util
@@ -10,19 +11,46 @@ from modules import img_util
 
 tb_callback = callbacks.TensorBoard(log_dir='Graph', histogram_freq=0, write_graph=True, write_images=True)
 
+best_modelweights_callback = callbacks.ModelCheckpoint(
+    'checkpoint_modelweights',
+    monitor='val_loss',
+    verbose=1,
+    save_best_only=True,
+    save_weights_only=True,
+    mode='min',
+    period=2
+)
 
-def build_residual_block(x):
+
+def build_dense_conf_block(x, dropout_rate=None):
+    """
+    builds a dense block according to https://arxiv.org/pdf/1608.06993.pdf
+    :param x:
+    :param dropout_rate:
+    :return:
+    """
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
+    x = Activation('relu')(x)
+    x = Conv2D(128, (1, 1), padding='same')(x)
+    x = Conv2D(32, (3, 3), padding='same')(x)
+    if dropout_rate:
+        x = Dropout(dropout_rate)(x)
+    return x
+
+
+def build_residual_block(x, dropout_rate=None):
     """
     builds a residual block according to https://arxiv.org/pdf/1512.03385.pdf
     :param x: the current block of the functional API
+    :param dropout_rate: the dropout rate after the convolution
     :return:
     """
     first_layer = Activation('linear', trainable=False)(x)
     x = Conv2D(256, (1, 1), padding='same')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(64, (3, 3), padding='same')(x)
-    x = Activation('relu')(x)
-    x = Conv2D(64, (1, 1), padding='same')(x)
+    x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+    x = Conv2D(64, (1, 1), padding='same', activation='relu')(x)
+    if dropout_rate:
+        x = Dropout(dropout_rate)(x)
     residual = Add()([x, first_layer])
     x = Activation('relu')(residual)
     return x
@@ -52,7 +80,6 @@ def build_functional(input_shape, num_classes):
     :return:
     """
     print("input shape for model: ", input_shape)
-    n_model = Sequential()
 
     """
     ### Dense Net with ResNet Blocks (ResNet Blocks have less trainable params!)
@@ -61,37 +88,45 @@ def build_functional(input_shape, num_classes):
     ### 1x1, 256
     ### 1*1*64 + 3*3*64 + 1*1*256 (vs.1*1*64 + 3*3*256)
     """
-    # CONV & POOLING
-    inputs = Conv2D(16, (7, 7), padding='same', input_shape=input_shape)
-    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(inputs)
+    # CONV & POOLING ----------------------------------------
+    inputs = Input(shape=input_shape)
+    x = Conv2D(16, (7, 7), padding='same')(inputs)
+    x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(x)
+    # x = Conv2D(64, (1, 1), padding='same')(x)  # necessary to bring to shape (,,64) for res block (shortcut)
     # 6x RES
     for i in range(6):
-        x = build_residual_block(x)
-    # CONV & POOLING
-    x = Conv2D(64, (1, 1), padding='same')(x)
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_dense_conf_block(x, dropout_rate=0.1)
+    # TRANSITION --> CONV & POOLING -------------------------
+    x = Activation('relu')(x)
+    x = Conv2D(32, (1, 1), padding='same')(x)
     x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
     # 12x RES
     for i in range(12):
-        x = build_residual_block(x)
-    # CONV & POOLING
-    x = Conv2D(64, (1, 1), padding='same')(x)
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_dense_conf_block(x, dropout_rate=0.15)
+    # TRANSITION --> CONV & POOLING -------------------------
+    x = Activation('relu')(x)
+    x = Conv2D(32, (1, 1), padding='same')(x)
     x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
     # 24x RES
     for i in range(24):
-        x = build_residual_block(x)
-    # CONV & POOL
-    x = Conv2D(64, (1, 1), padding='same')(x)
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_dense_conf_block(x, dropout_rate=0.2)
+    # TRANSITION --> CONV & POOLING -------------------------
+    x = Activation('relu')(x)
+    x = Conv2D(32, (1, 1), padding='same')(x)
     x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
     # 16x RES
     for i in range(16):
-        x = build_residual_block(x)
-    # CLASSIFICATION LAYER
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_dense_conf_block(x, dropout_rate=0.25)
+    # CLASSIFICATION LAYER ----------------------------------
     # POOL GLOBAL AVERAGE
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
+    x = Activation('relu')(x)
     x = GlobalAveragePooling2D()(x)
-    x = Dense(1000)(x)
-    x = Activation(activation='softmax')(x)
-    x = Dense(num_classes)(x)
-    outputs = Activation(activation='softmax')(x)
+    outputs = Dense(num_classes, activation='softmax')(x)
 
     n_model = Model(inputs=inputs, outputs=outputs)
 
@@ -181,7 +216,7 @@ def train(t_model, t_train_data, t_test_data, t_train_labels, t_test_labels):
         epochs=number_epochs,
         verbose=1,
         validation_data=(t_test_data, t_test_labels),
-        callbacks=[tb_callback]
+        callbacks=[tb_callback, best_modelweights_callback]
     )
     show_training_graph(model_history)
 
