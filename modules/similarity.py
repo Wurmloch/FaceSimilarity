@@ -2,12 +2,8 @@ import numpy as np
 import pickle
 import os
 from PIL import Image
-import webbrowser
 
-from modules import img_util
-from modules import net
-
-norm_face_folder = "E:\\EigeneDateien\\Dokumente\\Projekte\\image_recognition\\thumbnails_features_deduped_publish\\norm"
+norm_face_folder = "C:\\Users\\Dominik\\Documents\\Projekte\\Bilderkennung\\cfw_norm\\norm"
 
 
 def draw_stacked_faces(person):
@@ -26,13 +22,20 @@ def draw_stacked_faces(person):
     pil_img_list[0].show()
 
 
-def similarity_on_single_img(img_path, model):
-    test_img = img_util.get_single_img(img_path, grey=True)
-    test_img = [np.array(test_img, 'uint8')]
-    test_img = np.asarray(test_img)
-    test_img = test_img[:, :, :, np.newaxis] / 255.0
+def similarity_on_img_path(img_path, model):
+    try:
+        raw_img = Image.open(img_path).convert('L')
+        similarity_on_single_img(raw_img, model)
+    except OSError:
+        return
 
-    predict = model.predict_proba(test_img, batch_size=1, verbose=0)
+
+def similarity_on_single_img(raw_img, model):
+    sim_img = [np.array(raw_img, 'uint8')]
+    sim_img = np.asarray(sim_img)
+    sim_img = sim_img[:, :, :, np.newaxis] / 255.0
+
+    predict = model.predict_proba(sim_img, batch_size=1, verbose=0)
     # only 1 image -- thus first array el
     predict = predict[0]
 

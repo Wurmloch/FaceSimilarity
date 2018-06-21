@@ -14,11 +14,12 @@ def decision():
     elif answer == '2':
         net.init_net()
     elif answer == '3':
-        capture.live_capture()
+        full_model = load_model("model_full")
+        capture.live_capture(full_model)
     elif answer == '4':
         full_model = load_model("model_full")
         img_path = input("Enter the image path:\n--> ")
-        similarity.similarity_on_single_img(img_path, full_model)
+        similarity.similarity_on_img_path(img_path, full_model)
     elif answer == 'x':
         return
     else:

@@ -2,7 +2,7 @@ import cv2
 from modules import normalization, similarity
 
 
-def live_capture():
+def live_capture(model):
     """
     starts the live capture with the webcam
     webcam is needed to run this function
@@ -49,16 +49,12 @@ def live_capture():
                     face_to_crop = detectedFace
             similarity.capture_face_features(gray, face_to_crop)
             """
-            landmarks, aligned = normalization.normalize_face(frame, size=160, should_show=False)
+            landmarks, aligned = normalization.normalize_face(gray, size=128, should_show=False)
             if len(aligned) > 0:
-                similarity.get_similarity(aligned)
+                similarity.similarity_on_single_img(aligned, model)
         if pressed_key == ord('q'):
             break
 
     # When everything is done, release the capture
     video_capture.release()
     cv2.destroyAllWindows()
-
-
-if __name__ == 'main':
-    live_capture()
