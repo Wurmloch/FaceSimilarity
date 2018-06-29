@@ -1,4 +1,5 @@
 from keras.models import Model
+from keras.optimizers import SGD
 from keras.layers import Add, Input, MaxPooling2D, Conv2D, \
     Activation, Dense, AveragePooling2D, GlobalAveragePooling2D, Dropout, Flatten, BatchNormalization
 from keras.utils import plot_model
@@ -22,38 +23,46 @@ best_modelweights_callback = callbacks.ModelCheckpoint(
 )
 
 
-def build_dense_conf_block(x, dropout_rate=None):
+def build_dense_conf_block(x, filter_size=32, dropout_rate=None):
     """
     builds a dense block according to https://arxiv.org/pdf/1608.06993.pdf
     :param x:
     :param dropout_rate:
+    :param filter_size
     :return:
     """
     x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
     x = Activation('relu')(x)
-    x = Conv2D(128, (1, 1), padding='same')(x)
-    x = Conv2D(32, (3, 3), padding='same')(x)
+    x = Conv2D(filter_size * 4, (1, 1), padding='same')(x)
+    x = Conv2D(filter_size, (3, 3), padding='same')(x)
     if dropout_rate:
         x = Dropout(dropout_rate)(x)
     return x
 
 
-def build_residual_block(x, dropout_rate=None):
+def build_residual_block(x, dropout_rate=None, filter_size=64):
     """
     builds a residual block according to https://arxiv.org/pdf/1512.03385.pdf
     :param x: the current block of the functional API
     :param dropout_rate: the dropout rate after the convolution
+    :param filter_size
     :return:
     """
-    first_layer = Activation('linear', trainable=False)(x)
-    x = Conv2D(256, (1, 1), padding='same')(x)
-    x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
-    x = Conv2D(64, (1, 1), padding='same', activation='relu')(x)
+    first_layer = x
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
     if dropout_rate:
         x = Dropout(dropout_rate)(x)
+    x = Conv2D(filter_size, (3, 3), padding='same', activation='relu')(x)
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
+    if dropout_rate:
+        x = Dropout(dropout_rate)(x)
+    x = Conv2D(filter_size, (3, 3), padding='same', activation='relu')(x)
+    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
+    if dropout_rate:
+        x = Dropout(dropout_rate)(x)
+    x = Conv2D(filter_size, (1, 1), padding='same', activation='relu')(x)
     residual = Add()([x, first_layer])
-    x = Activation('relu')(residual)
-    return x
+    return residual
 
 
 def create_model(width, height, num_classes):
@@ -90,41 +99,39 @@ def build_functional(input_shape, num_classes):
     """
     # CONV & POOLING ----------------------------------------
     inputs = Input(shape=input_shape)
-    x = Conv2D(16, (7, 7), padding='same')(inputs)
+    x = Conv2D(64, (7, 7), padding='same')(inputs)
     x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2))(x)
     # x = Conv2D(64, (1, 1), padding='same')(x)  # necessary to bring to shape (,,64) for res block (shortcut)
     # 6x RES
+    for i in range(3):
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_residual_block(x, filter_size=64, dropout_rate=None)
+    # TRANSITION --> CONV & POOLING -------------------------
+    x = Activation('relu')(x)
+    x = Conv2D(128, (1, 1), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # 12x RES
+    for i in range(4):
+        # x = build_residual_block(x, dropout_rate=None)
+        x = build_residual_block(x, filter_size=128, dropout_rate=None)
+    # TRANSITION --> CONV & POOLING -------------------------
+    x = Activation('relu')(x)
+    x = Conv2D(256, (1, 1), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # 24x RES
     for i in range(6):
         # x = build_residual_block(x, dropout_rate=None)
-        x = build_dense_conf_block(x, dropout_rate=0.1)
+        x = build_residual_block(x, filter_size=256, dropout_rate=None)
     # TRANSITION --> CONV & POOLING -------------------------
     x = Activation('relu')(x)
-    x = Conv2D(32, (1, 1), padding='same')(x)
-    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-    # 12x RES
-    for i in range(12):
-        # x = build_residual_block(x, dropout_rate=None)
-        x = build_dense_conf_block(x, dropout_rate=0.15)
-    # TRANSITION --> CONV & POOLING -------------------------
-    x = Activation('relu')(x)
-    x = Conv2D(32, (1, 1), padding='same')(x)
-    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-    # 24x RES
-    for i in range(24):
-        # x = build_residual_block(x, dropout_rate=None)
-        x = build_dense_conf_block(x, dropout_rate=0.2)
-    # TRANSITION --> CONV & POOLING -------------------------
-    x = Activation('relu')(x)
-    x = Conv2D(32, (1, 1), padding='same')(x)
-    x = AveragePooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    x = Conv2D(512, (1, 1), padding='same')(x)
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
     # 16x RES
-    for i in range(16):
+    for i in range(3):
         # x = build_residual_block(x, dropout_rate=None)
-        x = build_dense_conf_block(x, dropout_rate=0.25)
+        x = build_residual_block(x, filter_size=512, dropout_rate=None)
     # CLASSIFICATION LAYER ----------------------------------
     # POOL GLOBAL AVERAGE
-    x = BatchNormalization(axis=-1, epsilon=1.1e-5)(x)
-    x = Activation('relu')(x)
     x = GlobalAveragePooling2D()(x)
     outputs = Dense(num_classes, activation='softmax')(x)
 
@@ -245,7 +252,7 @@ def load_train(lt_model, lt_train_data, lt_test_data, lt_train_labels, lt_test_l
     :return:
     """
     print("loading model weights...")
-    lt_model.load_weights("model_weights")
+    lt_model.load_weights("checkpoint_modelweights")
     print("model weights loaded.")
     number_epochs = int(input('Number of epochs:\n--> '))
     batch_size = int(input('Batch size:\n--> '))
@@ -298,8 +305,9 @@ def init_net():
     train_data, test_data, train_labels, test_labels, num_classes = img_util.norm_image_generator(norm_dir)
 
     model = create_model(128, 128, num_classes=num_classes)
+    sgd = SGD(lr=1e-2, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(
-        optimizer='sgd',
+        optimizer=sgd,
         loss='categorical_crossentropy',
         metrics=['accuracy']
     )
