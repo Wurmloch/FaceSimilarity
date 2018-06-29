@@ -295,6 +295,18 @@ def load(l_model):
     return l_model
 
 
+def load_weights(num_classes=1578):
+    w_model = create_model(128, 128, num_classes=num_classes)
+    sgd = SGD(lr=1e-2, decay=1e-6, momentum=0.9, nesterov=True)
+    w_model.compile(
+        optimizer=sgd,
+        loss='categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    w_model.load_weights('checkpoint_modelweights')
+    return w_model
+
+
 def init_net():
     """
     initializes the NN --> TODO: keine normalisierten Daten laden bei init

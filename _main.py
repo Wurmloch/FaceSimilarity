@@ -2,6 +2,9 @@ from keras.models import load_model
 
 from modules import normalization, capture, net, similarity
 
+global num_classes
+num_classes = 1578
+
 
 def decision():
     """
@@ -14,10 +17,16 @@ def decision():
     elif answer == '2':
         net.init_net()
     elif answer == '3':
-        full_model = load_model("model_full")
+        try:
+            full_model = load_model("model_full")
+        except OSError:
+            full_model = net.load_weights(num_classes)
         capture.live_capture(full_model)
     elif answer == '4':
-        full_model = load_model("model_full")
+        try:
+            full_model = load_model("model_full")
+        except OSError:
+            full_model = net.load_weights(num_classes)
         img_path = input("Enter the image path:\n--> ")
         similarity.similarity_on_img_path(img_path, full_model)
     elif answer == 'x':

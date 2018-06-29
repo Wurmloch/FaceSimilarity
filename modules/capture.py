@@ -2,7 +2,7 @@ import cv2
 from modules import normalization, similarity
 
 
-def live_capture(model):
+def live_capture(capture_model):
     """
     starts the live capture with the webcam
     webcam is needed to run this function
@@ -51,7 +51,7 @@ def live_capture(model):
             """
             landmarks, aligned = normalization.normalize_face(gray, size=128, should_show=False)
             if len(aligned) > 0:
-                similarity.similarity_on_single_img(aligned, model)
+                similarity.similarity_on_single_img(aligned, capture_model)
         if pressed_key == ord('q'):
             break
 
