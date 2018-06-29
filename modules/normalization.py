@@ -256,7 +256,7 @@ def start_normalization():
         os.makedirs(norm_root)
 
     for index, image_dir in enumerate(image_dir_list):
-        progress.set_progress(1, len(image_dir_list), index + 1)
+        progress.set_progress(0, len(image_dir_list), index + 1)
         image_list = os.listdir(os.path.join(dir_name, image_dir))
 
         if len(image_list) >= min_image_count:

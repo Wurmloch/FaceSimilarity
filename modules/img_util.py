@@ -104,10 +104,3 @@ def norm_image_generator(norm_folder):
     )
     """
     return train_data, test_data, train_labels, test_labels, number_classes
-
-
-def get_single_img(path, grey=True):
-    if grey:
-        return Image.open(path).convert('L')
-    else:
-        return Image.open(path)
