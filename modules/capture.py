@@ -50,7 +50,8 @@ def live_capture(capture_model):
             similarity.capture_face_features(gray, face_to_crop)
             """
             landmarks, aligned = normalization.normalize_face(gray, size=128, should_show=False)
-            if len(aligned) > 0:
+            print(landmarks, aligned)
+            if aligned is not None:
                 similarity.similarity_on_single_img(aligned, capture_model)
         if pressed_key == ord('q'):
             break
