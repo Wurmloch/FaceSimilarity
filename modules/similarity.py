@@ -3,7 +3,7 @@ import pickle
 import os
 from PIL import Image
 
-norm_face_folder = "C:\\Users\\Dominik\\Documents\\Projekte\\Bilderkennung\\cfw_norm\\norm"
+norm_face_folder = ""
 
 
 def draw_stacked_faces(person):
@@ -53,4 +53,4 @@ def similarity_on_single_img(raw_img, model):
     print("worst result: " + name_dict[worst_result])
     print(prediction[worst_result])
 
-    draw_stacked_faces(found_person)
+    # draw_stacked_faces(found_person)
